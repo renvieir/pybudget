@@ -1,0 +1,2 @@
+# pybudget
+Um gerenciador financeiro
