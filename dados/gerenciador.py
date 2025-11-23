@@ -2,7 +2,7 @@ import os
 
 from modelos import Lancamento
 
-NOME_ARQUIVO = "dados_financeiros.txt"
+NOME_ARQUIVO = os.path.join(os.path.dirname(__file__), "dados.txt")
 
 
 def salvar_dados(carteira):

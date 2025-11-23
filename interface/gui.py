@@ -62,37 +62,29 @@ class PyBudgetGUI:
         btn_add.grid(row=0, column=6, padx=10)
 
     def _criar_area_lista(self):
-        """Cria a tabela (Treeview) para exibir os dados"""
+        """Cria a tabela com botões de ação"""
         frame_lista = ttk.Frame(self.root, padding=10)
         frame_lista.pack(fill="both", expand=True)
 
-        colunas = ("data", "desc", "valor", "tipo")
-        self.tree = ttk.Treeview(frame_lista, columns=colunas, show="headings")
+        # Frame para cabeçalhos
+        frame_cabecalho = ttk.Frame(frame_lista)
+        frame_cabecalho.pack(fill="x", pady=(0, 5))
 
-        # Cabeçalhos
-        self.tree.heading("data", text="Data")
-        self.tree.heading("desc", text="Descrição")
-        self.tree.heading("valor", text="Valor (R$)")
-        self.tree.heading("tipo", text="Tipo")
+        ttk.Label(frame_cabecalho, text="Data", width=10).pack(side="left")
+        ttk.Label(frame_cabecalho, text="Descrição", width=20).pack(side="left")
+        ttk.Label(frame_cabecalho, text="Valor (R$)", width=12).pack(side="left")
+        ttk.Label(frame_cabecalho, text="Tipo", width=8).pack(side="left")
+        ttk.Label(frame_cabecalho, text="Ações", width=20).pack(side="left")
 
-        # Tamanho das colunas
-        self.tree.column("data", width=80, anchor="center")
-        self.tree.column("desc", width=200)
-        self.tree.column("valor", width=100, anchor="e")  # 'e' = east (direita)
-        self.tree.column("tipo", width=50, anchor="center")
+        # Frame com scrollbar para os dados
+        frame_scroll = ttk.Frame(frame_lista)
+        frame_scroll.pack(fill="both", expand=True)
 
-        # Barra de rolagem
-        scrollbar = ttk.Scrollbar(
-            frame_lista, orient="vertical", command=self.tree.yview
-        )
-        self.tree.configure(yscroll=scrollbar.set)
-
-        self.tree.pack(side="left", fill="both", expand=True)
+        scrollbar = ttk.Scrollbar(frame_scroll, orient="vertical")
         scrollbar.pack(side="right", fill="y")
 
-        # Tags de cor para as linhas
-        self.tree.tag_configure("receita", foreground="green")
-        self.tree.tag_configure("despesa", foreground="red")
+        self.frame_dados = ttk.Frame(frame_scroll)
+        self.frame_dados.pack(side="left", fill="both", expand=True)
 
     def _criar_area_resumo(self):
         """Mostra o Saldo e Botão Salvar"""
@@ -135,24 +127,43 @@ class PyBudgetGUI:
             messagebox.showerror("Erro", "Valor inválido. Digite apenas números.")
 
     def atualizar_tabela(self):
-        # Limpa a tabela atual
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # Limpa os dados anteriores
+        for widget in self.frame_dados.winfo_children():
+            widget.destroy()
 
-        # Reinsere os dados da carteira
-        # Ordenamos para mostrar os mais caros/importantes primeiro
+        # Ordena os lançamentos
         self.carteira.lancamentos.sort(reverse=True)
 
-        for lanc in self.carteira.lancamentos:
-            # Define a cor baseada no tipo
-            tag = "receita" if lanc.tipo == "R" else "despesa"
+        # Cria as linhas da tabela
+        for idx, lanc in enumerate(self.carteira.lancamentos):
+            frame_linha = ttk.Frame(self.frame_dados)
+            frame_linha.pack(fill="x", pady=2)
 
-            self.tree.insert(
-                "",
-                "end",
-                values=(lanc.data, lanc.descricao, f"R$ {lanc.valor:.2f}", lanc.tipo),
-                tags=(tag,),
-            )
+            # Cor baseada no tipo
+            cor = "green" if lanc.tipo == "R" else "red"
+
+            ttk.Label(frame_linha, text=lanc.data, width=10).pack(side="left")
+            ttk.Label(frame_linha, text=lanc.descricao, width=20).pack(side="left")
+            ttk.Label(
+                frame_linha,
+                text=f"R$ {lanc.valor:.2f}",
+                width=12,
+                foreground=cor,
+            ).pack(side="left")
+            ttk.Label(frame_linha, text=lanc.tipo, width=8).pack(side="left")
+
+            # Botões de ação
+            ttk.Button(
+                frame_linha,
+                text="Editar",
+                command=lambda i=idx: self._editar_lancamento(i),
+            ).pack(side="left", padx=2)
+
+            ttk.Button(
+                frame_linha,
+                text="Excluir",
+                command=lambda i=idx: self._remover_lancamento(i),
+            ).pack(side="left", padx=2)
 
         # Atualiza o Saldo
         saldo = self.carteira.saldo_atual()
@@ -172,6 +183,80 @@ class PyBudgetGUI:
         elif resposta is False:  # Não - fecha sem salvar
             self.root.destroy()
         # None significa cancelar - não faz nada
+
+    def _editar_lancamento(self, idx):
+        """Abre janela para editar um lançamento"""
+        lanc = self.carteira.lancamentos[idx]
+
+        # Cria janela de diálogo
+        janela_edicao = tk.Toplevel(self.root)
+        janela_edicao.title("Editar Lançamento")
+        janela_edicao.geometry("400x300")
+        janela_edicao.transient(self.root)
+        janela_edicao.grab_set()
+
+        # Campo de descrição
+        ttk.Label(janela_edicao, text="Descrição:").pack(pady=5)
+        ent_desc = ttk.Entry(janela_edicao, width=30)
+        ent_desc.insert(0, lanc.descricao)
+        ent_desc.pack(pady=5)
+
+        # Campo de valor
+        ttk.Label(janela_edicao, text="Valor (R$):").pack(pady=5)
+        ent_valor = ttk.Entry(janela_edicao, width=30)
+        ent_valor.insert(0, str(lanc.valor))
+        ent_valor.pack(pady=5)
+
+        # Radio buttons para tipo
+        var_tipo = tk.StringVar(value=lanc.tipo)
+        ttk.Radiobutton(
+            janela_edicao, text="Receita", variable=var_tipo, value="R"
+        ).pack()
+        ttk.Radiobutton(
+            janela_edicao, text="Despesa", variable=var_tipo, value="D"
+        ).pack()
+
+        def salvar_edicao():
+            try:
+                nova_desc = ent_desc.get()
+                novo_valor = float(ent_valor.get().replace(",", "."))
+                novo_tipo = var_tipo.get()
+
+                if not nova_desc or novo_valor <= 0:
+                    messagebox.showwarning(
+                        "Aviso",
+                        "Descrição e valor válido são necessários!",
+                    )
+                    return
+
+                lanc.descricao = nova_desc
+                lanc.valor = novo_valor
+                lanc.tipo = novo_tipo
+
+                self.atualizar_tabela()
+                janela_edicao.destroy()
+            except ValueError:
+                msg = "Valor inválido. Digite apenas números."
+                messagebox.showerror("Erro", msg)
+
+        # Frame para os botões
+        frame_botoes = ttk.Frame(janela_edicao)
+        frame_botoes.pack(pady=10)
+
+        ttk.Button(frame_botoes, text="Salvar", command=salvar_edicao).pack(
+            side="left", padx=5
+        )
+
+        ttk.Button(frame_botoes, text="Cancelar", command=janela_edicao.destroy).pack(
+            side="left", padx=5
+        )
+
+    def _remover_lancamento(self, idx):
+        """Remove um lançamento da carteira"""
+        msg = "Deseja remover este lançamento?"
+        if messagebox.askyesno("Confirmação", msg):
+            del self.carteira.lancamentos[idx]
+            self.atualizar_tabela()
 
     def salvar_e_sair(self):
         gerenciador.salvar_dados(self.carteira)
