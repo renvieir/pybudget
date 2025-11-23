@@ -48,6 +48,13 @@ pybudget/
 python main.py
 ```
 
+
+## Como rodar testes
+
+```bash
+python -m unittest
+```
+
 ## Funcionamento
 
 1. **Novo Lançamento:** Preencha a descrição, valor e selecione o tipo (Receita ou Despesa)
