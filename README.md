@@ -62,6 +62,10 @@ python -m unittest
 3. **Histórico:** Visualize todas as transações na tabela
 4. **Saldo:** O saldo atual é calculado automaticamente
 
+# Autor
+
+Renato Pacheco Vieira
+
 # Disclaimer
 
 Feito com ajuda do gemini
